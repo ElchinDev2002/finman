@@ -1,11 +1,14 @@
+import 'package:cookie_jar/cookie_jar.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio_cookie_manager/dio_cookie_manager.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 /// CHANGE THIS to your deployed backend.
 /// Must be HTTPS for release/TestFlight builds (see README).
 /// For local testing against the AWS box over plain HTTP you'll need to
 /// allow cleartext traffic for that host — see README "Testing over HTTP".
-const String kApiBaseUrl = 'https://YOUR_DOMAIN_HERE';
+const String kApiBaseUrl = 'http://3.80.51.211:3000/';
 
 class ApiException implements Exception {
   final String message;
@@ -16,13 +19,15 @@ class ApiException implements Exception {
 }
 
 /// Thin wrapper around Dio that:
-///  - stores the JWT in secure storage after login/register
-///  - attaches it as `Authorization: Bearer <token>` to every request
+///  - persists the backend's `fm_token` session cookie in a [PersistCookieJar]
+///    and resends it automatically on every request
 ///  - exposes the same endpoints your Next.js app already calls under /api/*
 ///
-/// NOTE: today /api/auth/login and /api/auth/register only set an
-/// httpOnly cookie. For this client to work you need to also return the
-/// token in the JSON body — see the 3-line backend change in the README.
+/// NOTE: /api/auth/login, /api/auth/me, etc. authenticate purely via the
+/// httpOnly `fm_token` cookie set on login/register — the backend does not
+/// read an `Authorization: Bearer` header at all (verified: it 401s even
+/// with a valid JWT there). So "logged in" here means "do we hold that
+/// cookie", not "did the JSON body contain a token".
 class ApiClient {
   ApiClient._internal()
       : _dio = Dio(BaseOptions(
@@ -31,74 +36,93 @@ class ApiClient {
           receiveTimeout: const Duration(seconds: 15),
           headers: {'Content-Type': 'application/json'},
         )) {
-    _dio.interceptors.add(InterceptorsWrapper(
-      onRequest: (options, handler) async {
-        final token = await _storage.read(key: _tokenKey);
-        if (token != null) {
-          options.headers['Authorization'] = 'Bearer $token';
-        }
-        handler.next(options);
-      },
-      onError: (error, handler) {
-        handler.next(error);
-      },
-    ));
+    _ready = _init();
   }
 
   static final ApiClient instance = ApiClient._internal();
 
   final Dio _dio;
-  final _storage = const FlutterSecureStorage();
-  static const _tokenKey = 'fm_token';
+  late final PersistCookieJar _cookieJar;
+  late final Future<void> _ready;
 
-  Future<void> _saveTokenFromResponse(Map<String, dynamic> data) async {
-    final token = data['token'] as String?;
-    if (token != null) {
-      await _storage.write(key: _tokenKey, value: token);
+  Future<void> _init() async {
+    final dir = await getApplicationSupportDirectory();
+    _cookieJar = PersistCookieJar(storage: FileStorage('${dir.path}/.cookies'));
+    _dio.interceptors.add(CookieManager(_cookieJar));
+    if (kDebugMode) {
+      _dio.interceptors.add(InterceptorsWrapper(
+        onRequest: (options, handler) {
+          debugPrint('--> ${options.method} ${options.uri}');
+          if (options.data != null) debugPrint('    body: ${_redacted(options.data)}');
+          handler.next(options);
+        },
+        onResponse: (response, handler) {
+          debugPrint('<-- ${response.statusCode} ${response.requestOptions.method} ${response.requestOptions.uri}');
+          debugPrint('    body: ${response.data}');
+          handler.next(response);
+        },
+        onError: (error, handler) {
+          debugPrint(
+              '<-- ERROR ${error.response?.statusCode} ${error.requestOptions.method} ${error.requestOptions.uri}: ${error.message}');
+          if (error.response?.data != null) debugPrint('    body: ${error.response?.data}');
+          handler.next(error);
+        },
+      ));
     }
   }
 
-  Future<bool> get isLoggedIn async => (await _storage.read(key: _tokenKey)) != null;
+  dynamic _redacted(dynamic data) {
+    if (data is Map<String, dynamic> && data.containsKey('password')) {
+      return {...data, 'password': '***'};
+    }
+    return data;
+  }
+
+  Future<bool> get isLoggedIn async {
+    await _ready;
+    final cookies = await _cookieJar.loadForRequest(Uri.parse(kApiBaseUrl));
+    return cookies.any((c) => c.name == 'fm_token');
+  }
 
   Future<void> logout() async {
-    await _storage.delete(key: _tokenKey);
+    await _ready;
     try {
       await _dio.post('/api/auth/logout');
     } catch (_) {
-      // ignore network errors on logout, token is already cleared locally
+      // ignore network errors on logout, cookie is cleared locally below
     }
+    await _cookieJar.deleteAll();
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
+    await _ready;
     try {
       final res = await _dio.post('/api/auth/login', data: {
         'email': email,
         'password': password,
       });
-      final data = res.data as Map<String, dynamic>;
-      await _saveTokenFromResponse(data);
-      return data;
+      return res.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw ApiException(_extractError(e), e.response?.statusCode);
     }
   }
 
   Future<Map<String, dynamic>> register(String name, String email, String password) async {
+    await _ready;
     try {
       final res = await _dio.post('/api/auth/register', data: {
         'name': name,
         'email': email,
         'password': password,
       });
-      final data = res.data as Map<String, dynamic>;
-      await _saveTokenFromResponse(data);
-      return data;
+      return res.data as Map<String, dynamic>;
     } on DioException catch (e) {
       throw ApiException(_extractError(e), e.response?.statusCode);
     }
   }
 
   Future<Map<String, dynamic>> me() async {
+    await _ready;
     try {
       final res = await _dio.get('/api/auth/me');
       return res.data as Map<String, dynamic>;
@@ -108,6 +132,7 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> dashboard() async {
+    await _ready;
     try {
       final res = await _dio.get('/api/dashboard');
       return res.data as Map<String, dynamic>;
@@ -119,6 +144,7 @@ class ApiClient {
   /// Generic GET helper for the rest of the /api/* endpoints
   /// (transactions, accounts, budgets, goals, credits, subscriptions, ...).
   Future<dynamic> get(String path, {Map<String, dynamic>? query}) async {
+    await _ready;
     try {
       final res = await _dio.get(path, queryParameters: query);
       return res.data;
@@ -128,6 +154,7 @@ class ApiClient {
   }
 
   Future<dynamic> post(String path, Map<String, dynamic> body) async {
+    await _ready;
     try {
       final res = await _dio.post(path, data: body);
       return res.data;
