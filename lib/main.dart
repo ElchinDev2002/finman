@@ -4,7 +4,7 @@ import 'api/api_client.dart';
 import 'app_theme.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/login_screen.dart';
-import 'screens/placeholder_screen.dart';
+import 'screens/transactions_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/shell_screen.dart';
 
@@ -57,7 +57,9 @@ final _router = GoRouter(
           currentPath: path,
           child: path == '/dashboard'
               ? const DashboardScreen()
-              : PlaceholderScreen(title: _titleFor(path)),
+              : path == '/transactions'
+                  ? const TransactionsScreen()
+                  : PlaceholderScreen(title: _titleFor(path)),
         ),
       ),
     ),
