@@ -11,7 +11,7 @@ class PlaceholderScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(title)),
+      appBar: AppBar(title: Text(title), centerTitle: true,),
       body: Center(
         child: Text(
           '$title screen — hook this up to the matching /api endpoint',

@@ -1,3 +1,4 @@
+import 'package:finance_manager_app/screens/placeholder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'api/api_client.dart';

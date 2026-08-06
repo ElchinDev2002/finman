@@ -65,6 +65,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Транзакции'),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.filter_list),
