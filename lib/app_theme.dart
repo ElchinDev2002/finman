@@ -45,7 +45,7 @@ ThemeData buildAppTheme() {
       onPrimary: AppColors.ink,
       onSurface: AppColors.fg,
     ),
-    cardTheme: CardThemeData(
+    cardTheme: CardTheme(
       color: AppColors.surface,
       elevation: 0,
       shape: RoundedRectangleBorder(

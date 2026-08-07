@@ -15,10 +15,9 @@ list(APPEND FLUTTER_TOOL_ENVIRONMENT
   "FLUTTER_ROOT=C:\\src\\flutter\\flutter"
   "FLUTTER_EPHEMERAL_DIR=C:\\Projects\\pepk\\finance_manager\\finance_manager_app\\windows\\flutter\\ephemeral"
   "PROJECT_DIR=C:\\Projects\\pepk\\finance_manager\\finance_manager_app"
-  "FLUTTER_TARGET=C:\\Projects\\pepk\\finance_manager\\finance_manager_app\\lib\\main.dart"
-  "DART_DEFINES=RkxVVFRFUl9XRUJfQ0FOVkFTS0lUX1VSTD1odHRwczovL3d3dy5nc3RhdGljLmNvbS9mbHV0dGVyLWNhbnZhc2tpdC9mNjM0NGI3NWRjZjg2MWQ4YmYxZjEzMjI3ODBiODgxMWY5ODJlMzFhLw=="
+  "FLUTTER_TARGET=lib\\main.dart"
   "DART_OBFUSCATION=false"
   "TRACK_WIDGET_CREATION=true"
-  "TREE_SHAKE_ICONS=false"
+  "TREE_SHAKE_ICONS=true"
   "PACKAGE_CONFIG=C:\\Projects\\pepk\\finance_manager\\finance_manager_app\\.dart_tool\\package_config.json"
 )

@@ -117,7 +117,6 @@ class _BudgetGoalsScreenState extends State<BudgetGoalsScreen> {
                     final spent = item['spent']?.toDouble() ?? 0;
                     final percent = limit > 0 ? (spent / limit) : 0;
                     final remaining = limit - spent;
-
                     return Column(
                       children: [
                         Row(
@@ -145,7 +144,7 @@ class _BudgetGoalsScreenState extends State<BudgetGoalsScreen> {
                             minHeight: 8,
                           ),
                         ),
-                        if (percent > 0.9)
+                        if (percent > 0.9) ...[
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
@@ -156,10 +155,11 @@ class _BudgetGoalsScreenState extends State<BudgetGoalsScreen> {
                                   fontWeight: FontWeight.w500),
                             ),
                           ),
+                        ],
                         const SizedBox(height: 16),
                       ],
-                    ).toList(),
-                  ),
+                    );
+                  }).toList(),
                 ),
         ],
       ),
@@ -219,12 +219,13 @@ class _BudgetGoalsScreenState extends State<BudgetGoalsScreen> {
                           style: const TextStyle(fontSize: 14, color: AppColors.muted),
                         ),
                       ),
-                      if (remaining > 0)
+                      if (remaining > 0) ...[
                         Text(
                           'Осталось: ${_currencyFormat.format(remaining)}',
                           style: TextStyle(
                               fontSize: 12, color: AppColors.muted),
                         ),
+                      ],
                     ],
                   ),
                   const SizedBox(height: 4),
