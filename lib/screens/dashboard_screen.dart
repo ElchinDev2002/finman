@@ -98,7 +98,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 4),
-          Text(
+          const Text(
             'Ваш текущий баланс',
             style: TextStyle(fontSize: 14, color: AppColors.muted),
           ),

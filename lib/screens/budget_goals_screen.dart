@@ -34,7 +34,7 @@ class _BudgetGoalsScreenState extends State<BudgetGoalsScreen> {
       // Fetch dashboard data for budget plan
       final dashboardData = await ApiClient.instance.dashboard();
       // Fetch goals data
-      final goalsData = await ApiClient.instance.get('/goals');
+      final goalsData = await ApiClient.instance.get('/api/goals');
 
       setState(() {
         _dashboardData = dashboardData;

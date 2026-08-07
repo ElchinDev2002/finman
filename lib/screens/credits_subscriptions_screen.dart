@@ -14,7 +14,8 @@ class CreditsSubscriptionsScreen extends StatefulWidget {
 
 class _CreditsSubscriptionsScreenState
     extends State<CreditsSubscriptionsScreen> {
-  List<dynamic> _upcoming = [];
+  List<dynamic> _credits = [];
+  List<dynamic> _subscriptions = [];
   String? _error;
   bool _loading = true;
   final NumberFormat _currencyFormat =
@@ -34,25 +35,19 @@ class _CreditsSubscriptionsScreenState
       _error = null;
     });
     try {
-      final data = await ApiClient.instance.get('/upcoming');
-      setState(() => _upcoming = List<dynamic>.from(data));
+      final results = await Future.wait([
+        ApiClient.instance.get('/api/credits'),
+        ApiClient.instance.get('/api/subscriptions'),
+      ]);
+      setState(() {
+        _credits = List<dynamic>.from(results[0]);
+        _subscriptions = List<dynamic>.from(results[1]);
+      });
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } finally {
       setState(() => _loading = false);
     }
-  }
-
-  List<dynamic> _getSubscriptions() {
-    return _upcoming
-        .where((item) => item['kind'] == 'subscription')
-        .toList();
-  }
-
-  List<dynamic> _getCreditsAndBills() {
-    return _upcoming
-        .where((item) => item['kind'] == 'credit' || item['kind'] == 'bill')
-        .toList();
   }
 
   @override
@@ -90,7 +85,7 @@ class _CreditsSubscriptionsScreenState
   }
 
   Widget _buildSubscriptionsSection() {
-    final subscriptions = _getSubscriptions();
+    final subscriptions = _subscriptions;
 
     return AppCard(
       child: Column(
@@ -113,8 +108,9 @@ class _CreditsSubscriptionsScreenState
                   itemBuilder: (context, index) {
                     final sub = subscriptions[index];
                     final amount = sub['amount']?.toDouble() ?? 0;
-                    final date = DateTime.parse(sub['date']);
-                    final formattedDate = _dateFormat.format(date);
+                    final rawDate = sub['date'] as String?;
+                    final formattedDate =
+                        rawDate != null ? _dateFormat.format(DateTime.parse(rawDate)) : null;
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
@@ -151,8 +147,10 @@ class _CreditsSubscriptionsScreenState
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${_currencyFormat.format(amount)} • $formattedDate',
-                                  style: TextStyle(
+                                  formattedDate != null
+                                      ? '${_currencyFormat.format(amount)} • $formattedDate'
+                                      : _currencyFormat.format(amount),
+                                  style: const TextStyle(
                                       fontSize: 14, color: AppColors.muted),
                                 ),
                               ],
@@ -178,21 +176,21 @@ class _CreditsSubscriptionsScreenState
   }
 
   Widget _buildCreditsAndBillsSection() {
-    final items = _getCreditsAndBills();
+    final items = _credits;
 
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Кредиты и счета',
+            'Кредиты',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 16),
           items.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(16),
-                  child: Text('Нет активных кредитов или счетов'),
+                  child: Text('Нет активных кредитов'),
                 )
               : ListView.builder(
                   shrinkWrap: true,
@@ -200,24 +198,20 @@ class _CreditsSubscriptionsScreenState
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    final amount = item['amount']?.toDouble() ?? 0;
-                    final date = DateTime.parse(item['date']);
-                    final formattedDate = _dateFormat.format(date);
-                    final isCredit = item['kind'] == 'credit';
-                    final isBill = item['kind'] == 'bill';
+                    final monthlyPayment =
+                        item['monthlyPayment']?.toDouble() ?? 0;
+                    final remaining = item['remainingAmount']?.toDouble() ?? 0;
+                    final total = item['totalAmount']?.toDouble() ?? 0;
+                    final paymentDay = item['paymentDay'];
 
                     return Container(
                       margin: const EdgeInsets.only(bottom: 16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: isCredit
-                            ? AppColors.accent.withOpacity(0.1)
-                            : AppColors.danger.withOpacity(0.1),
+                        color: AppColors.accent.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(AppRadius.card),
                         border: Border.all(
-                          color: isCredit
-                              ? AppColors.accent.withOpacity(0.3)
-                              : AppColors.danger.withOpacity(0.3),
+                          color: AppColors.accent.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -226,19 +220,14 @@ class _CreditsSubscriptionsScreenState
                             width: 28,
                             height: 28,
                             decoration: BoxDecoration(
-                              color: isCredit
-                                  ? AppColors.accent.withOpacity(0.2)
-                                  : AppColors.danger.withOpacity(0.2),
+                              color: AppColors.accent.withOpacity(0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Center(
                               child: Text(
-                                item['icon'] ?? (isCredit ? '���🏦' : '���🧾'),
+                                item['icon'] ?? '🏦',
                                 style: const TextStyle(
-                                    fontSize: 14,
-                                    color: isCredit
-                                        ? AppColors.accent
-                                        : AppColors.danger),
+                                    fontSize: 14, color: AppColors.accent),
                               ),
                             ),
                           ),
@@ -254,21 +243,20 @@ class _CreditsSubscriptionsScreenState
                                 ),
                                 const SizedBox(height: 4),
                                 Text(
-                                  '${isCredit ? 'Кредит' : 'Счет'} • $formattedDate',
-                                  style: TextStyle(
+                                  'Остаток ${_currencyFormat.format(remaining)} из ${_currencyFormat.format(total)}'
+                                  '${paymentDay != null ? ' • $paymentDay числа' : ''}',
+                                  style: const TextStyle(
                                       fontSize: 14, color: AppColors.muted),
                                 ),
                               ],
                             ),
                           ),
                           Text(
-                            '${_currencyFormat.format(amount)}',
-                            style: TextStyle(
+                            _currencyFormat.format(monthlyPayment),
+                            style: const TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
-                              color: isCredit
-                                  ? AppColors.accent
-                                  : AppColors.danger,
+                              color: AppColors.accent,
                             ),
                           ),
                         ],

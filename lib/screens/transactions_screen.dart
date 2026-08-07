@@ -36,7 +36,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _error = null;
     });
     try {
-      final data = await ApiClient.instance.get('/transactions');
+      final data = await ApiClient.instance.get('/api/transactions');
       setState(() => _transactions = List<dynamic>.from(data));
     } on ApiException catch (e) {
       setState(() => _error = e.message);
