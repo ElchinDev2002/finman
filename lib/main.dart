@@ -8,6 +8,9 @@ import 'screens/login_screen.dart';
 import 'screens/transactions_screen.dart';
 import 'screens/register_screen.dart';
 import 'screens/shell_screen.dart';
+import 'screens/budget_goals_screen.dart';
+import 'screens/credits_subscriptions_screen.dart';
+import 'screens/settings_screen.dart';
 
 void main() {
   runApp(const FinanceManagerApp());
@@ -60,7 +63,13 @@ final _router = GoRouter(
               ? const DashboardScreen()
               : path == '/transactions'
                   ? const TransactionsScreen()
-                  : PlaceholderScreen(title: _titleFor(path)),
+                  : path == '/budget' || path == '/goals'
+                      ? const BudgetGoalsScreen()
+                      : path == '/credits' || path == '/subscriptions'
+                          ? const CreditsSubscriptionsScreen()
+                          : path == '/settings'
+                              ? const SettingsScreen()
+                              : PlaceholderScreen(title: _titleFor(path)),
         ),
       ),
     ),
